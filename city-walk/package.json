@@ -1,0 +1,17 @@
+{
+  "name": "city-walk",
+  "version": "1.0.0",
+  "description": "10 s blocky 3D street animation, rendered to MP4 with Three.js in headless Chromium",
+  "scripts": {
+    "render": "node render.mjs city-walk.mp4 720 1280 30",
+    "preview": "npx http-server -p 8080 ."
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "playwright": "*"
+  }
+}
