@@ -1,0 +1,10 @@
+{
+ "_note": "FICTIONAL example numbers so the code runs; real values go in data.local.json (git-ignored)",
+ "jobs": 100,
+ "days": 2,
+ "pcs": 3,
+ "shareJobs": 40,
+ "shareWait": 60,
+ "medLeft": 20,
+ "medRight": 80
+}
