@@ -1,0 +1,348 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>The Robot Print Room</title>
+<style>
+  html,body{margin:0;background:#000;overflow:hidden}
+  #wrap{position:relative;width:576px;height:1024px;overflow:hidden;font-family:'Liberation Sans',Arial,sans-serif}
+  canvas{display:block}
+  #vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,rgba(0,0,0,0) 62%,rgba(30,10,50,.30) 100%)}
+  #fade{position:absolute;inset:0;background:#1d1030;opacity:0;pointer-events:none;z-index:1}
+  #badge,#live,#title,#lower,#cap,#end1,#end2{z-index:2}
+  #vig{z-index:1}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+  #badge{position:absolute;left:16px;top:18px;background:rgba(40,20,70,.82);color:#fff;border-radius:18px;padding:7px 14px;font-weight:700;font-size:13px;letter-spacing:1.2px}
+  #badge small{display:block;font-weight:600;font-size:10px;letter-spacing:1.5px;opacity:.75;margin-top:1px}
+  #live{position:absolute;right:16px;top:20px;background:#e8344a;color:#fff;border-radius:14px;padding:6px 12px;font-weight:800;font-size:13px;letter-spacing:2px;opacity:0;display:flex;align-items:center;gap:7px}
+  #live i{width:9px;height:9px;border-radius:50%;background:#fff;display:block}
+  #lower{position:absolute;left:0;top:700px;opacity:0;transform:translateX(-300px)}
+  #lower .nm{display:inline-block;background:#fff;color:#2a1a40;font-weight:800;font-size:26px;padding:7px 22px 7px 18px;border-radius:0 18px 18px 0;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  #lower .rl{display:block;width:max-content;margin-top:4px;font-weight:800;font-size:12px;letter-spacing:1.8px;color:#fff;padding:5px 14px 5px 18px;border-radius:0 12px 12px 0}
+  #card{position:absolute;right:14px;top:540px;width:352px;border-radius:18px;background:rgba(255,255,255,.97);box-shadow:0 6px 22px rgba(30,10,60,.35);opacity:0;overflow:hidden;z-index:2}
+  #card .ct{padding:9px 16px;color:#fff;font-weight:800;font-size:15px;letter-spacing:1.5px}
+  #card ul{margin:0;padding:10px 16px 12px 34px;color:#241838;font-weight:700;font-size:19px;line-height:1.28}
+  #card li{margin:2px 0}
+  #cap{position:absolute;left:36px;right:36px;top:812px;text-align:center}
+  #cap span{display:inline-block;background:rgba(255,255,255,.96);color:#1f1530;font-weight:800;font-size:27px;line-height:1.18;padding:8px 16px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+  #title{position:absolute;left:0;right:0;top:300px;text-align:center;color:#fff;opacity:0}
+  #title b{display:block;font-size:44px;letter-spacing:1px;text-shadow:0 3px 16px rgba(80,30,140,.8)}
+  #title span{display:block;margin-top:10px;font-size:17px;letter-spacing:4px;font-weight:700;opacity:.9}
+  #end1{position:absolute;left:44px;right:44px;top:330px;text-align:center;color:#fff;font-weight:800;font-size:33px;line-height:1.22;opacity:0;text-shadow:0 3px 14px rgba(40,10,80,.7)}
+  #end2{position:absolute;left:44px;right:44px;top:560px;text-align:center;color:#ffd6f0;font-weight:700;font-size:22px;line-height:1.3;opacity:0}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="fade"></div>
+  <div id="badge">THE ROBOT PRINT ROOM<small>EP. 2  •  THE PRINTERS SPEAK</small></div>
+  <div id="live"><i></i>ON AIR</div>
+  <div id="title"><b>THE ROBOT<br>PRINT ROOM</b><span>EPISODE 2: THE PRINTERS SPEAK</span></div>
+  <div id="lower"><span class="nm" id="lnm">Mica</span><span class="rl" id="lrl">HOST</span></div>
+  <div id="card"><div class="ct" id="cardT"></div><ul id="cardL"></ul></div>
+  <div id="cap"><span id="capt"></span></div>
+  <div id="end1">Which robot should<br>speak next?</div>
+  <div id="end2">Next time: Hooky teaches you how to go viral. Allegedly.</div>
+  <div id="vig"></div>
+  <div id="flash"></div>
+</div>
+<script type="importmap">{"imports":{"three":"./three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from './RoundedBoxGeometry.js';
+
+const W = 576, H = 1024;
+const wrap = document.getElementById('wrap');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+wrap.prepend(renderer.domElement);
+const EP = new URLSearchParams(location.search).get('ep') || '2';
+const D = await (await fetch(`ep${EP}.json`)).json();
+const THEMES = {
+  lilac: { bg: 0x2a1f45, wall: 0xc2adea, floor: 0xcdbbe8, rug: 0xf4b6d6, riser: 0x9a86d6, trim: 0xff8fc8, hemiG: 0xb59fd8, sign: '#ffb8e6', rows: [[0xf2f0fa, 0xb59bf0], [0xf6e6f2, 0xd69bd0], [0xe8f0fa, 0x9bb8f0]], cub: [0xffd6e8, 0xd6ecff, 0xfff0c2, 0xd6f5d6, 0xe8d6ff, 0xffe0c2], cubFrame: 0x8f78c4 },
+  peach: { bg: 0x45261f, wall: 0xf4c6a2, floor: 0xf6e0c8, rug: 0xa8d8c8, riser: 0xe3a272, trim: 0xff7a4a, hemiG: 0xe0b090, sign: '#ff8f4a', rows: [[0xfff4e6, 0xf2a97a], [0xfff0e0, 0xe8b48a], [0xfff8ea, 0xf0c08a]], cub: [0xffe0c2, 0xfff0c2, 0xd6f5d6, 0xffd6e8, 0xd6ecff, 0xe8d6ff], cubFrame: 0xd98a58 },
+  mint:  { bg: 0x1f4538, wall: 0xa8e0c8, floor: 0xd2f0e0, rug: 0xf4c6d8, riser: 0x6cc0a0, trim: 0x2fb08a, hemiG: 0x90c8b0, sign: '#1f9a78', rows: [[0xf0faf6, 0x7ad0b0], [0xe8f6f0, 0x9ad8c0], [0xf6fbf8, 0x8acfd0]], cub: [0xd6f5d6, 0xfff0c2, 0xd6ecff, 0xffd6e8, 0xe8d6ff, 0xffe0c2], cubFrame: 0x58b090 },
+  sky:   { bg: 0x1f3045, wall: 0xa8c8f2, floor: 0xd6e4f8, rug: 0xffd6a8, riser: 0x6a98d6, trim: 0xffb02e, hemiG: 0x90a8d0, sign: '#2f6fd0', rows: [[0xf0f6ff, 0x7aa8f0], [0xe8f0fa, 0x9ab8f0], [0xf6faff, 0x8ac0e8]], cub: [0xd6ecff, 0xfff0c2, 0xffd6e8, 0xd6f5d6, 0xe8d6ff, 0xffe0c2], cubFrame: 0x5a88c8 },
+  rose:  { bg: 0x45202f, wall: 0xf2b8cc, floor: 0xf8dce6, rug: 0xb8e0d8, riser: 0xe07a9c, trim: 0xff4a8a, hemiG: 0xd8a0b4, sign: '#e8407a', rows: [[0xfff0f4, 0xf08aac], [0xffeaf0, 0xe89ab8], [0xfff6f8, 0xf0a8c0]], cub: [0xffd6e8, 0xfff0c2, 0xd6ecff, 0xd6f5d6, 0xe8d6ff, 0xffe0c2], cubFrame: 0xd06088 },
+};
+const TH = THEMES[D.theme || 'lilac'];
+const scene = new THREE.Scene(); scene.background = new THREE.Color(TH.bg);
+const camera = new THREE.PerspectiveCamera(40, W / H, 0.1, 200);
+
+const lerp = (a, b, t) => a + (b - a) * t, clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const smooth = t => { t = clamp(t); return t * t * (3 - 2 * t); }, seg = (t, a, b) => clamp((t - a) / (b - a));
+const matCache = {};
+const mat = (c, o = {}) => { const k = c + JSON.stringify(o); return matCache[k] || (matCache[k] = new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.55, metalness: 0.05 }, o))); };
+function box(g, w, h, d, c, x = 0, y = 0, z = 0, o = {}) {
+  const geo = o.round ? new RoundedBoxGeometry(w, h, d, 4, Math.min(o.round, Math.min(w, h, d) / 2.05)) : new THREE.BoxGeometry(w, h, d);
+  const m = new THREE.Mesh(geo, o.mat || mat(c, o.m)); m.position.set(x, y, z); m.castShadow = !o.noShadow; m.receiveShadow = true; g.add(m); return m;
+}
+function cyl(g, r, h, c, x = 0, y = 0, z = 0, o = {}) { const m = new THREE.Mesh(new THREE.CylinderGeometry(o.r2 ?? r, r, h, o.seg || 20), o.mat || mat(c, o.m)); m.position.set(x, y, z); m.castShadow = !o.noShadow; m.receiveShadow = true; g.add(m); return m; }
+function ball(g, r, c, x = 0, y = 0, z = 0, o = {}) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), o.mat || mat(c, o.m)); m.position.set(x, y, z); m.castShadow = !o.noShadow; m.receiveShadow = true; g.add(m); return m; }
+function textPlane(g, text, w, h, bg, fg, font, x, y, z, ry = 0, glow = false) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = Math.round(512 * h / w); const x2 = c.getContext('2d');
+  if (bg) { x2.fillStyle = bg; x2.fillRect(0, 0, c.width, c.height); }
+  x2.font = font; x2.textAlign = 'center'; x2.textBaseline = 'middle'; x2.fillStyle = fg; x2.fillText(text, c.width / 2, c.height / 2 + 2);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glow || !bg ? new THREE.MeshBasicMaterial({ map: t, transparent: !bg }) : new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 }));
+  m.position.set(x, y, z); m.rotation.y = ry; g.add(m); return m;
+}
+
+// ------------------------------------------------------------------ studio
+const studio = new THREE.Group(); scene.add(studio);
+const hemi = new THREE.HemisphereLight(0xfff0ff, TH.hemiG, 1.0); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2e6, 1.7); sun.position.set(-6, 16, 14); sun.target.position.set(0, 5, -5); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); { const c = sun.shadow.camera; c.left = -16; c.right = 16; c.top = 20; c.bottom = -6; c.near = 1; c.far = 60; } sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03; scene.add(sun, sun.target);
+const pk = new THREE.PointLight(0xff8fc8, 26, 40, 2); pk.position.set(-9, 10, 4); scene.add(pk);
+const bl = new THREE.PointLight(0x8fb8ff, 26, 40, 2); bl.position.set(9, 10, 4); scene.add(bl);
+
+// floor + rug
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 40), new THREE.MeshStandardMaterial({ color: TH.floor, roughness: 0.7 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; studio.add(floor);
+{ const r = cyl(studio, 9.5, 0.06, TH.rug, 0, 0.03, 2, { seg: 40, noShadow: true }); r.scale.z = 0.62; }
+// back wall with cubby grid
+box(studio, 44, 30, 0.5, TH.wall, 0, 15, -13.4, { noShadow: true });
+const cubCols = TH.cub;
+for (let r = 0; r < 9; r++) for (let c = 0; c < 15; c++) {
+  const x = -9.8 + c * 1.4, y = 1.3 + r * 1.35;
+  box(studio, 1.3, 1.25, 0.9, TH.cubFrame, x, y, -12.8, { noShadow: true });
+  box(studio, 1.08, 0.2, 0.7, cubCols[(r * 3 + c) % 6], x, y - 0.35 + (c % 3) * 0.06, -12.5, { noShadow: true });
+  box(studio, 1.08, 0.2, 0.7, cubCols[(r * 5 + c * 2 + 1) % 6], x, y - 0.1, -12.5, { noShadow: true });
+}
+// neon title sign + ON AIR
+box(studio, 8.4, 1.5, 0.3, 0x2a1d48, 0, 14.8, -12.9, { round: 0.2, noShadow: true });
+textPlane(studio, 'THE ROBOT PRINT ROOM', 7.8, 1.1, null, TH.sign, 'bold 41px Liberation Sans, sans-serif', 0, 14.8, -12.72, 0, true);
+const onair = new THREE.Group(); onair.position.set(0, 12.6, -12.6); studio.add(onair);
+box(onair, 3.2, 1.3, 0.3, 0x3a0f18, 0, 0, 0, { round: 0.2, noShadow: true });
+const onairLit = textPlane(onair, 'ON AIR', 2.8, 0.9, null, '#ff3350', 'bold 120px Liberation Sans, sans-serif', 0, 0, 0.18, 0, true);
+const onairGlow = new THREE.PointLight(0xff3350, 0, 22, 2); onairGlow.position.set(0, 12.6, -9.5); scene.add(onairGlow);
+// pendant lamps
+const lamps = [-6, 0, 6].map(x => { const gp = new THREE.Group(); gp.position.set(x * 1.3, 21, -3.5); studio.add(gp); cyl(gp, 0.03, 8, 0x444455, 0, 4, 0, { seg: 6, noShadow: true }); cyl(gp, 1.4, 0.9, 0xffd1ec, 0, 0, 0, { seg: 24, r2: 0.5, noShadow: true }); const glow = ball(gp, 0.55, 0xfff2cc, 0, -0.5, 0, { noShadow: true, mat: new THREE.MeshBasicMaterial({ color: 0xfff2cc }) }); return gp; });
+// printer prop + table
+const prt = new THREE.Group(); prt.position.set(-9.5, 0, -10.5); studio.add(prt);
+box(prt, 3.4, 2.2, 2.2, 0x8f78c4, 0, 1.1, 0, { round: 0.1 }); box(prt, 2.6, 0.9, 1.9, 0xf7f4fb, 0, 2.55, 0, { round: 0.2 }); box(prt, 2.2, 0.15, 0.2, 0x2a2438, 0, 2.3, 1.0, { noShadow: true }); const sheet = box(prt, 1.7, 0.03, 1.2, 0xffffff, 0, 2.2, 1.5, { noShadow: true }); const sheetCol = box(prt, 1.7, 0.035, 0.5, 0xff9ac8, 0, 2.22, 1.5, { noShadow: true });
+textPlane(prt, 'PRINTER', 2.4, 0.5, '#8f78c4', '#fff', 'bold 40px Liberation Sans, sans-serif', 0, 1.2, 1.12);
+// plants
+for (const x of [-8.6, 8.8]) { cyl(studio, 0.9, 1.3, 0xf2a0c0, x, 0.65, -10.4, { seg: 14 }); for (let i = 0; i < 7; i++) { const l = box(studio, 0.35, 2.4, 0.08, 0x4faf7a, x + (i - 3) * 0.28, 2.3, -10.4 + (i % 2) * 0.3, { noShadow: true }); l.rotation.z = (i - 3) * 0.2; } }
+// ------------------------------------------------------------------ robots
+const POOL = {
+  MICA:    { kind: 'robot',   acc: 0x2fd6d6, eye: '#bff7f2', col: '#1fbfbf', s: 1.0 },
+  HOOKY:   { kind: 'robot',   acc: 0xffb02e, eye: '#ffe3a8', col: '#f09a10', s: 1.0 },
+  CHARGEY: { kind: 'robot',   acc: 0x4a8bff, eye: '#bcd6ff', col: '#3d7bf0', s: 1.0 },
+  DRAFTY:  { kind: 'robot',   acc: 0xff7ab8, eye: '#ffd1ea', col: '#ff6fae', s: 1.0 },
+  LISTER:  { kind: 'robot',   acc: 0x56c85a, eye: '#cdf5c8', col: '#3fb145', s: 1.0 },
+  LOGBOT:  { kind: 'robot',   acc: 0x8f96b0, eye: '#d5e0ff', col: '#7a82a0', s: 1.0 },
+  LEFTY:   { kind: 'printer', acc: 0x56c85a, eye: '#cdf5c8', col: '#3fb145', s: 1.0 },
+  KRAFT:   { kind: 'printer', acc: 0xc8853a, eye: '#ffd9a8', col: '#b8741f', s: 1.0 },
+  DUSTY:   { kind: 'printer', acc: 0x8f96b0, eye: '#d5e0ff', col: '#7a82a0', s: 1.0 },
+  DYMO:    { kind: 'printer', acc: 0x2fb0d0, eye: '#b8f0ff', col: '#1f98b8', s: 0.8 },
+  STATUS:  { kind: 'printer', acc: 0xa07af0, eye: '#e6d8ff', col: '#8a62e0', s: 1.0 },
+  DALIA:   { kind: 'human',   acc: 0xf2a0c0, eye: '#2a1a14', col: '#e0689a', s: 1.0 },
+};
+const SLOTS = [
+  { x: -2.8, y: 0.0, z: -2.2, row: 0 }, { x: 2.8, y: 0.0, z: -2.2, row: 0 },
+  { x: -2.8, y: 2.4, z: -5.4, row: 1 }, { x: 2.8, y: 2.4, z: -5.4, row: 1 },
+  { x: -2.8, y: 4.8, z: -8.6, row: 2 }, { x: 2.8, y: 4.8, z: -8.6, row: 2 },
+];
+const CAST = {}; const ROLE_COL = {};
+D.cast.forEach((k, i) => { const sl = SLOTS[i]; CAST[k] = Object.assign({}, POOL[k], sl, { y: sl.y + (POOL[k].s < 1 ? 0.4 : 0) }); ROLE_COL[k] = POOL[k].col; });
+const bots = {};
+// three tiers (bleachers): a riser and a desk for each row
+[[0, -2.2], [2.4, -5.4], [4.8, -8.6]].forEach(([yo, z], r) => {
+  const [topC, frontC] = TH.rows[r];
+  if (yo > 0) box(studio, 11.5, yo, 3.4, TH.riser, 0, yo / 2, z - 0.1, { round: 0.12 });
+  box(studio, 11.0, 0.3, 1.9, topC, 0, yo + 2.6, z + 1.35, { round: 0.12 }); box(studio, 10.6, 2.3, 0.3, frontC, 0, yo + 1.5, z + 2.2, { round: 0.1 }); box(studio, 10.4, 0.14, 0.1, TH.trim, 0, yo + 2.3, z + 2.38, { noShadow: true });
+});
+function mkBot(key) {
+  const cfg = CAST[key]; const g = new THREE.Group(); g.position.set(cfg.x, cfg.y, cfg.z); g.rotation.y = -cfg.x * 0.045; g.scale.setScalar(cfg.s); scene.add(g);
+  const human = cfg.kind === 'human', printer = cfg.kind === 'printer';
+  const white = key === 'STATUS' ? 0xe8e0ff : (key === 'DUSTY' ? 0xe6e2ee : 0xf8f5fc); const skin = 0xe3b88d;
+  const body = new THREE.Group(); g.add(body);
+  if (printer) {
+    box(body, 2.5, 1.7, 1.45, white, 0, 3.1, 0, { round: 0.3, m: key === 'STATUS' ? { transparent: true, opacity: 0.78 } : undefined }); box(body, 1.8, 0.14, 0.1, 0x2a2438, 0, 3.15, 0.74, { noShadow: true });
+    box(body, 1.4, 0.04, 0.9, 0xffffff, 0, 3.15, 1.1, { noShadow: true }); box(body, 1.7, 0.08, 0.7, 0xd8d0e8, 0, 3.97, 0.1, { noShadow: true });
+    body.userData.bulb = ball(body, 0.12, 0xffffff, 0.8, 2.7, 0.76, { noShadow: true, mat: new THREE.MeshBasicMaterial({ color: 0xffffff }) });
+  } else if (human) {
+    box(body, 2.0, 1.8, 1.25, 0xf2a0c0, 0, 3.15, 0, { round: 0.4 }); box(body, 0.9, 0.5, 0.06, 0xffffff, 0, 2.85, 0.64, { round: 0.06, noShadow: true });
+    body.userData.bulb = ball(body, 0.01, 0xffffff, 0, 0, 0, { noShadow: true });
+  } else {
+    box(body, 2.0, 1.8, 1.25, white, 0, 3.15, 0, { round: 0.4 }); box(body, 1.1, 0.5, 0.08, cfg.acc, 0, 3.05, 0.64, { round: 0.06, noShadow: true });
+    body.userData.bulb = ball(body, 0.12, 0xffffff, 0.35, 3.05, 0.7, { noShadow: true, mat: new THREE.MeshBasicMaterial({ color: 0xffffff }) });
+  }
+  const bulb = body.userData.bulb;
+  cyl(body, 0.35, 0.35, human ? skin : 0xd8d0e8, 0, 4.1, 0, { seg: 14 });
+  const head = new THREE.Group(); head.position.set(0, 5.05, 0); body.add(head);
+  if (human) {
+    box(head, 2.4, 2.1, 1.7, skin, 0, 0, 0, { round: 0.55 });
+    box(head, 2.5, 0.7, 1.8, 0x2a1c14, 0, 0.95, -0.05, { round: 0.3, noShadow: true }); box(head, 2.5, 2.6, 0.5, 0x2a1c14, 0, -0.5, -0.78, { round: 0.2, noShadow: true });
+    for (const s of [-1, 1]) { box(head, 0.35, 1.9, 1.5, 0x2a1c14, s * 1.2, -0.25, -0.05, { round: 0.15, noShadow: true }); const ear = cyl(head, 0.5, 0.4, 0xf2a0c0, s * 1.38, 0.05, 0, { seg: 24 }); ear.rotation.z = Math.PI / 2; }
+    const band = cyl(head, 1.42, 0.12, 0xf2a0c0, 0, 1.35, 0, { seg: 30, noShadow: true }); band.scale.z = 0.7; band.scale.x = 0.88;
+  } else {
+    box(head, 2.65, 2.05, 1.65, white, 0, 0, 0, { round: 0.55, m: key === 'STATUS' ? { transparent: true, opacity: 0.82 } : undefined });
+    box(head, 2.2, 1.6, 0.14, 0x1d1730, 0, 0, 0.8, { round: 0.2, noShadow: true });
+  }
+  const fc = document.createElement('canvas'); fc.width = 512; fc.height = 384; const fx = fc.getContext('2d'); const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace;
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(human ? 1.9 : 2.05, human ? 1.4 : 1.5), new THREE.MeshBasicMaterial({ map: ft })); face.position.set(0, human ? -0.05 : 0, human ? 0.86 : 0.875); head.add(face);
+  let ant = ball(head, 0.01, 0xffffff, 0, 0, 0, { noShadow: true });
+  if (!human) {
+    for (const s of [-1, 1]) { const ear = cyl(head, 0.5, 0.4, cfg.acc, s * 1.42, 0, 0, { seg: 24 }); ear.rotation.z = Math.PI / 2; box(head, 0.12, 0.9, 0.9, white, s * 1.25, 0, 0, { round: 0.05, noShadow: true }); }
+    cyl(head, 0.06, 0.8, 0xc8c0d8, 0, 1.4, 0, { seg: 8 }); ant = ball(head, 0.2, cfg.acc, 0, 1.9, 0, { m: { emissive: cfg.acc, emissiveIntensity: 0.5 } });
+  }
+  const arms = [-1, 1].map(s => { const a = new THREE.Group(); a.position.set(s * (printer ? 1.4 : 1.2), 3.75, 0.1); body.add(a); box(a, 0.5, 1.3, 0.5, human ? 0xf2a0c0 : white, 0, -0.55, 0, { round: 0.2 }); ball(a, 0.34, human ? skin : cfg.acc, 0, -1.3, 0, {}); return a; });
+  const mic = new THREE.Group(); mic.position.set(-1.5, 2.7, 1.2); g.add(mic); cyl(mic, 0.25, 0.1, 0x333344, 0, 0, 0, { seg: 12 }); cyl(mic, 0.05, 1.0, 0x333344, 0, 0.55, 0, { seg: 8 }); ball(mic, 0.22, 0x222230, 0, 1.15, 0.05, {});
+  box(g, 1.5, 0.22, 1.0, 0xffffff, 1.2, 2.74, 1.35, { round: 0.04 }); box(g, 1.5, 0.05, 1.0, cfg.acc, 1.2, 2.88, 1.35, { noShadow: true });
+  // ---- accessories (each character keeps its own look)
+  if (key === 'MICA') { const band = cyl(head, 1.45, 0.14, 0x2fd6d6, 0, 0.9, 0, { seg: 30, noShadow: true }); band.scale.z = 0.72; band.scale.x = 0.9; }
+  if (key === 'DRAFTY') { box(body, 0.9, 0.62, 0.06, 0xffffff, -0.45, 2.55, 0.66, { round: 0.04, noShadow: true }); const fl = box(body, 0.9, 0.04, 0.5, 0xffb6d6, -0.45, 2.82, 0.66, { noShadow: true }); fl.rotation.x = 0.7; for (const s of [-1, 1]) { const b = box(head, 0.5, 0.35, 0.2, 0xff7ab8, s * 0.35, 1.25, 0.2, { round: 0.1 }); b.rotation.z = s * 0.5; } }
+  if (key === 'CHARGEY') { box(body, 0.45, 0.9, 0.06, 0xe83a4a, 0, 2.55, 0.66, { round: 0.04, noShadow: true }); box(body, 0.2, 0.7, 0.2, 0x7a4a2a, 1.3, 2.9, 0.8, { round: 0.05 }); box(body, 0.9, 0.4, 0.4, 0x7a4a2a, 1.3, 3.3, 0.8, { round: 0.1 }); box(head, 2.7, 0.2, 1.7, 0x4a8bff, 0, 0.95, 0, { round: 0.1, noShadow: true }); }
+  if (key === 'LISTER') { box(body, 1.1, 1.4, 0.1, 0xf0e6c8, 1.6, 2.7, 0.9, { round: 0.05 }); for (let i = 0; i < 4; i++) box(body, 0.7, 0.07, 0.04, i < 3 ? 0x56c85a : 0xaaaaaa, 1.6, 3.15 - i * 0.28, 0.97, { noShadow: true }); const lf = box(head, 0.7, 0.14, 0.4, 0x56c85a, 0.5, 1.8, 0, { noShadow: true }); lf.rotation.z = -0.5; }
+  if (key === 'HOOKY') { const ring = new THREE.Mesh(new THREE.TorusGeometry(2.0, 0.12, 12, 40), new THREE.MeshBasicMaterial({ color: 0xfff6d8 })); ring.position.set(0, 5.1, -1.0); g.add(ring); box(head, 0.6, 0.18, 0.5, 0xffb02e, 0.7, 1.5, 0.15, { round: 0.06, noShadow: true }); textPlane(head, '♪', 0.9, 0.9, null, '#ffb02e', 'bold 140px Liberation Sans, sans-serif', -0.7, 1.75, 0.2, 0, true); }
+  if (key === 'LOGBOT') { const mg = new THREE.Group(); mg.position.set(1.6, 2.9, 0.9); g.add(mg); mg.add(new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.09, 10, 28), mat(0x555a72))); mg.add(new THREE.Mesh(new THREE.CircleGeometry(0.46, 24), new THREE.MeshStandardMaterial({ color: 0xaad8ff, transparent: true, opacity: 0.5 }))); box(mg, 0.12, 0.8, 0.12, 0x555a72, 0.4, -0.7, 0, { noShadow: true }).rotation.z = 0.7; const dish = cyl(head, 0.6, 0.2, 0xc8c0d8, 0.0, 2.0, 0, { seg: 20, r2: 0.2 }); dish.rotation.x = -0.5; }
+  if (key === 'LEFTY') { textPlane(body, '#3', 1.1, 0.8, '#56c85a', '#fff', 'bold 90px Liberation Sans, sans-serif', -0.7, 3.55, 0.78); const lf = box(head, 0.7, 0.14, 0.4, 0x56c85a, 0.5, 1.8, 0, { noShadow: true }); lf.rotation.z = -0.5; }
+  if (key === 'KRAFT') { box(body, 1.3, 0.85, 0.06, 0xc8853a, -0.5, 2.7, 0.78, { round: 0.03, noShadow: true }); const fl = box(body, 1.3, 0.04, 0.5, 0xb87430, -0.5, 3.1, 0.82, { noShadow: true }); fl.rotation.x = 0.5; for (let i = 0; i < 3; i++) box(g, 1.3, 0.12, 0.9, 0xc8853a, -0.6, 2.82 + i * 0.13, 1.5, { round: 0.02, noShadow: true }); box(head, 2.7, 0.18, 1.7, 0x8a5a22, 0, 0.95, 0, { round: 0.1, noShadow: true }); }
+  if (key === 'DUSTY') { for (let i = 0; i < 4; i++) ball(body, 0.2 + (i % 2) * 0.08, 0xc8c8d2, -1.0 + i * 0.7, 4.0 + (i % 2) * 0.1, -0.1 + (i % 2) * 0.4, { noShadow: true }); box(body, 0.5, 0.5, 0.04, 0xfff08a, 0.7, 2.8, 0.76, { noShadow: true }).rotation.z = 0.15; box(body, 0.5, 0.5, 0.04, 0xffb6d6, 0.95, 3.35, 0.76, { noShadow: true }).rotation.z = -0.1; box(head, 0.7, 0.2, 0.08, 0xf2c8a0, -0.6, 0.8, 0.85, { noShadow: true }).rotation.z = 0.5; box(head, 0.7, 0.2, 0.08, 0xf2c8a0, -0.6, 0.8, 0.86, { noShadow: true }).rotation.z = -0.5; cyl(g, 0.28, 0.4, 0xffffff, -1.2, 2.95, 1.4, { seg: 14 }); }
+  if (key === 'DYMO') { const roll = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.22, 12, 28), mat(0x2fb0d0)); roll.position.set(0, 2.15, 0); roll.rotation.x = Math.PI / 2 - 0.3; head.add(roll); box(g, 1.2, 0.5, 0.04, 0xffffff, 0.2, 2.5, 1.0, { noShadow: true }); textPlane(g, 'SHIPPED', 1.1, 0.4, null, '#1f98b8', 'bold 70px Liberation Sans, sans-serif', 0.2, 2.5, 1.03); }
+  if (key === 'STATUS') { box(head, 2.0, 0.55, 0.04, 0xffffff, 0, 2.55, 0.4, { noShadow: true }); textPlane(head, 'STATUS INQUIRY', 1.9, 0.5, null, '#8a62e0', 'bold 56px Liberation Sans, sans-serif', 0, 2.55, 0.43); }
+  return { key, cfg, g, body, head, arms, fx, ft, ant, bulb, mic, blinkPhase: Math.random() * 6 };
+}
+for (const k of D.cast) bots[k] = mkBot(k);
+
+// ------------------------------------------------------------------ faces
+const rr = (x, a, b, c, d, r) => { x.beginPath(); x.roundRect(a, b, c, d, r); };
+function drawFace(b, s) {
+  const x = b.fx, Wc = 512, Hc = 384; x.clearRect(0, 0, Wc, Hc); const human = b.cfg.kind === 'human';
+  if (human) { x.fillStyle = '#e3b88d'; x.fillRect(0, 0, Wc, Hc); } else { const g = x.createLinearGradient(0, 0, 0, Hc); g.addColorStop(0, '#2a2147'); g.addColorStop(1, '#171229'); x.fillStyle = g; x.fillRect(0, 0, Wc, Hc);
+  x.fillStyle = 'rgba(255,255,255,0.04)'; for (let y = 0; y < Hc; y += 6) x.fillRect(0, y, Wc, 2); }
+  const emo = s.emo, col = b.cfg.eye, mo = s.mouth;
+  const ex = [Wc * 0.31, Wc * 0.69], ey = Hc * 0.40; let ew = 62, eh = 92;
+  const bl = s.blink; const sx = s.look[0] * 14, sy = s.look[1] * 10;
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  for (let i = 0; i < 2; i++) {
+    const cx = ex[i] + sx, cy = ey + sy;
+    let kind = 'oval';
+    if (emo === 'happy' || emo === 'laugh') kind = 'arc'; else if (emo === 'shock' || emo === 'dramatic') { ew = 74; eh = 108; } else if (emo === 'excited') { ew = 70; eh = 100; kind = 'star'; } else if (emo === 'deadpan' || emo === 'stern' || emo === 'tired') kind = 'lid'; else if (emo === 'smug') kind = 'halflid'; else if (emo === 'worried') { ew = 56; eh = 84; } else if (emo === 'sweet') { ew = 68; eh = 100; }
+    if (kind === 'arc') { x.strokeStyle = col; x.lineWidth = 18; x.beginPath(); x.arc(cx, cy + 22, 42, Math.PI * 1.12, Math.PI * 1.88); x.stroke(); }
+    else {
+      x.fillStyle = col; const h = eh * (1 - 0.9 * bl); x.shadowColor = col; x.shadowBlur = human ? 0 : 24;
+      if (kind === 'lid') { rr(x, cx - ew / 2, cy - h / 2, ew, h, 26); x.fill(); x.shadowBlur = 0; x.fillStyle = human ? '#e3b88d' : '#1d1730'; x.fillRect(cx - ew, cy - h / 2 - 2, ew * 2, h * 0.42); }
+      else if (kind === 'halflid') { rr(x, cx - ew / 2, cy - h / 2, ew, h, 26); x.fill(); x.shadowBlur = 0; x.fillStyle = human ? '#e3b88d' : '#1d1730'; x.beginPath(); x.moveTo(cx - ew, cy - h / 2 - 2); x.lineTo(cx + ew, cy - h / 2 - 2); x.lineTo(cx + ew, cy - h * (i ? 0.02 : 0.2)); x.lineTo(cx - ew, cy - h * (i ? 0.2 : 0.02)); x.fill(); }
+      else if (kind === 'star') { x.shadowBlur = 30; x.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 22 : 50; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r * (1 - 0.8 * bl)); } x.closePath(); x.fill(); }
+      else { rr(x, cx - ew / 2, cy - h / 2, ew, h, ew * 0.48); x.fill(); x.shadowBlur = 0; x.fillStyle = 'rgba(255,255,255,0.85)'; x.beginPath(); x.ellipse(cx - ew * 0.14, cy - h * 0.22, ew * 0.16, h * 0.13, 0, 0, 7); x.fill(); }
+    }
+    x.shadowBlur = 0;
+    // brows
+    x.strokeStyle = col; x.lineWidth = 11; const bx = ex[i] + sx, by = ey - 76 + sy;
+    if (emo === 'worried') { x.beginPath(); x.moveTo(bx - 34 * (i ? -1 : 1) * -1 + (i ? 0 : 0), by + 6); x.moveTo(bx + (i ? 34 : -34), by + 14); x.lineTo(bx + (i ? -30 : 30), by - 10); x.stroke(); }
+    else if (emo === 'stern') { x.beginPath(); x.moveTo(bx + (i ? 36 : -36), by - 8); x.lineTo(bx + (i ? -32 : 32), by + 18); x.stroke(); }
+    else if (emo === 'smug' && i === 0) { x.beginPath(); x.moveTo(bx - 30, by + 10); x.lineTo(bx + 30, by - 6); x.stroke(); }
+    else if (emo === 'dramatic' && i === 1) { x.beginPath(); x.moveTo(bx - 30, by - 4); x.quadraticCurveTo(bx, by - 26, bx + 30, by - 2); x.stroke(); }
+  }
+  // cheeks
+  x.fillStyle = human ? 'rgba(255,110,140,0.35)' : 'rgba(255,120,170,0.55)'; for (const cx of [Wc * 0.15, Wc * 0.85]) { x.beginPath(); x.ellipse(cx, Hc * 0.66, 26, 15, 0, 0, 7); x.fill(); }
+  // mouth
+  const mx = Wc / 2 + s.look[0] * 8, my = Hc * 0.74; x.strokeStyle = human ? '#9a3a46' : col; x.fillStyle = human ? '#b8404e' : '#ff7aa8'; x.lineWidth = 13;
+  if (mo > 0.08) { const w = 40 + 38 * mo + (emo === 'laugh' ? 20 : 0), h = 10 + 74 * mo; x.beginPath(); x.ellipse(mx, my + h * 0.2, w, h, 0, 0, 7); x.fill(); x.strokeStyle = '#2a1030'; x.lineWidth = 7; x.stroke(); x.fillStyle = '#ff4a7a'; x.beginPath(); x.ellipse(mx, my + h * 0.55, w * 0.5, h * 0.35, 0, 0, 7); x.fill(); }
+  else { x.beginPath(); if (emo === 'worried') { x.arc(mx, my + 30, 36, Math.PI * 1.15, Math.PI * 1.85); } else if (emo === 'deadpan' || emo === 'stern' || emo === 'tired') { x.moveTo(mx - 34, my + 4); x.lineTo(mx + 34, my + (emo === 'tired' ? 12 : 4)); } else if (emo === 'smug') { x.moveTo(mx - 36, my + 6); x.quadraticCurveTo(mx + 10, my + 22, mx + 40, my - 6); } else { x.arc(mx, my - 14, 40, Math.PI * 0.15, Math.PI * 0.85); } x.stroke(); }
+  b.ft.needsUpdate = true;
+}
+
+// ------------------------------------------------------------------ data + director
+const LINES = D.lines, TOTAL = D.total, ORDER = D.cast;
+function lineAt(t) { for (let i = LINES.length - 1; i >= 0; i--) if (t >= LINES[i].v0 - 0.05) return i; return -1; }
+function speaking(t) { for (let i = 0; i < LINES.length; i++) if (t >= LINES[i].v0 && t <= LINES[i].v1 + 0.05) return i; return -1; }
+const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+function envAt(l, t) { const k = (t - l.start) * 48; const i = Math.floor(k); if (i < 0 || i >= l.env.length - 1) return 0; return lerp(l.env[i], l.env[i + 1], k - i); }
+const headPos = (key) => { const b = bots[key]; return new THREE.Vector3(b.cfg.x, b.g.position.y + 5.05 * b.cfg.s, b.g.position.z); };
+
+// shot library: returns {pos, look, fov, roll}
+function closeShot(key, k, variant) {
+  const hp = headPos(key); const side = (variant % 3 - 1) * 0.7, up = 0.0 + (variant % 2) * 0.25, dist = lerp(9.4, 7.8, k) + (variant % 4 === 3 ? 1.0 : 0) + (bots[key].cfg.kind === 'human' ? 1.6 : 0);
+  return { pos: [hp.x + side * (1 - 0.3 * k), hp.y + up + 0.3, hp.z + dist], look: [hp.x, hp.y - 0.9, hp.z], fov: 40, roll: ((variant % 5) - 2) * 0.012, tgt: key };
+}
+function twoShot(a, b, k) { const pa = headPos(a), pb = headPos(b); const mx = (pa.x + pb.x) / 2, d = Math.abs(pa.x - pb.x); return { pos: [mx + lerp(-1.5, 1.5, k), pa.y + 1.2, pa.z + 11.0 + d * 1.9], look: [mx, pa.y - 0.6, pa.z], fov: 42, roll: 0, tgt: a }; }
+function wideShot(k, v) { return v === 0 ? { pos: [lerp(-3, 3, k), 8.8, 16.5], look: [0, 6.0, -4.5], fov: 54, roll: 0 } : { pos: [lerp(5, -5, k), 12.5, 15.5], look: [0, 5.6, -4.5], fov: 54, roll: lerp(0.02, -0.02, k) }; }
+const neighborOf = key => { const i = ORDER.indexOf(key); return ORDER[i ^ 1]; };
+function director(t) {
+  const li = lineAt(t); const L0 = li >= 0 ? LINES[li] : null;
+  if (!L0) return wideShot(seg(t, 0, 1.6), 0);
+  if (li === 0) { // intro: dolly wide then close
+    const k = seg(t, LINES[0].v0, LINES[0].v1);
+    if (k < 0.42) return wideShot(k / 0.42, 0);
+    if (k < 0.78) return wideShot((k - 0.42) / 0.36, 1);
+    return closeShot('MICA', (k - 0.78) / 0.22, 2);
+  }
+  if (!L0) return wideShot(seg(t, D.end, TOTAL), 0);
+  if (t > L0.v1 + 0.02 && li < LINES.length - 1) { // reaction shot in the gap
+    const nxt = LINES[li + 1]; const who = nxt.who === L0.who ? neighborOf(L0.who) : (hash(li) > 0.5 ? nxt.who : L0.who);
+    const r = closeShot(who === L0.who ? neighborOf(who) : who, 0.2, li + 3); return r;
+  }
+  const dur = L0.v1 - L0.v0, k = seg(t, L0.v0, L0.v1);
+  if (dur > 5.2) { if (k < 0.5) return closeShot(L0.who, k / 0.5, li); if (k < 0.78) return twoShot(L0.who, neighborOf(L0.who), (k - 0.5) / 0.28); return closeShot(L0.who, (k - 0.78) / 0.22 * 0.6 + 0.4, li + 1); }
+  if (dur > 3.4 && k > 0.6) return twoShot(L0.who, neighborOf(L0.who), (k - 0.6) / 0.4);
+  return closeShot(L0.who, k, li);
+}
+let camState = null;
+function applyCam(t) {
+  const s = director(t);
+  for (const k of Object.keys(bots)) bots[k].g.visible = !(s.tgt && bots[s.tgt].cfg.row > bots[k].cfg.row); const hand = (a) => Math.sin(t * 1.9 + a) * 0.03;
+  camera.fov = s.fov; camera.updateProjectionMatrix(); camera.position.set(s.pos[0] + hand(0), s.pos[1] + hand(2), s.pos[2]); camera.lookAt(s.look[0], s.look[1], s.look[2]); camera.rotation.z += s.roll + hand(5) * 0.1;
+}
+
+// ------------------------------------------------------------------ DOM refs
+const $ = id => document.getElementById(id);
+$('badge').innerHTML = D.badge; $('title').innerHTML = D.titleCard; $('end1').innerHTML = D.end1; $('end2').innerHTML = D.end2;
+const badge = $('badge'), live = $('live'), lower = $('lower'), lnm = $('lnm'), lrl = $('lrl'), cap = $('cap'), capt = $('capt'), title = $('title'), end1 = $('end1'), end2 = $('end2'), fade = $('fade'), flash = $('flash');
+function chunks(text) { const w = text.split(' '); const out = []; let cur = ''; for (const x of w) { if ((cur + ' ' + x).trim().length > 30 && cur) { out.push(cur.trim()); cur = x; } else cur = (cur + ' ' + x).trim(); } if (cur) out.push(cur); return out; }
+const CH = LINES.map(l => chunks(l.text));
+
+// ------------------------------------------------------------------ frame
+function renderFrame(t) {
+  const live_ = t >= D.onair; const sp = speaking(t), li = lineAt(t);
+  // ON AIR sign + glow
+  const flick = live_ ? (0.85 + 0.15 * Math.sin(t * 9)) : 0; onairLit.material.opacity = 1; onairLit.material.color.setScalar(live_ ? 1 : 0.18); onairGlow.intensity = live_ ? 30 * flick : 0;
+  lamps.forEach((l, i) => l.rotation.z = Math.sin(t * 0.8 + i) * 0.015);
+  // printer prints a page now and then
+  const pk2 = (t * 0.22) % 1; sheet.position.z = 1.5 + 0.9 * smooth(seg(pk2, 0.1, 0.45)) - 0.9 * smooth(seg(pk2, 0.8, 0.95)); sheetCol.position.z = sheet.position.z + 0.3; sheet.visible = sheetCol.visible = live_;
+  for (const key of ORDER) {
+    const b = bots[key], idx = ORDER.indexOf(key); const isSp = sp >= 0 && LINES[sp].who === key; const L0 = isSp ? LINES[sp] : null;
+    const amp = isSp ? envAt(L0, t) : 0;
+    // emotion: speaker's own; listeners react to the current line's mood
+    let emo = 'neutral', curL = li >= 0 ? LINES[li] : null;
+    if (isSp) emo = L0.emo; else if (curL) { const m = curL.emo; emo = m === 'laugh' || m === 'deadpan' || m === 'smug' ? (hash(idx * 7 + li) > 0.45 ? 'laugh' : 'happy') : m === 'shock' ? 'shock' : m === 'dramatic' ? 'shock' : m === 'worried' ? 'worried' : (hash(idx + li * 3) > 0.5 ? 'happy' : 'sweet'); if (!live_) emo = 'neutral'; }
+    if (!live_ && !isSp) emo = (hash(idx) > 0.5 ? 'sweet' : 'deadpan');
+    const ph = (t * 0.28 + b.blinkPhase) % 1; const blink = ph > 0.965 ? Math.sin(seg(ph, 0.965, 1.0) * Math.PI) : 0;
+    const look = [Math.sin(t * 0.7 + idx * 2) * 0.5, Math.cos(t * 0.5 + idx) * 0.3];
+    drawFace(b, { emo, mouth: isSp ? clamp(amp * 1.05) : 0, blink, look });
+    // body language
+    const sway = Math.sin(t * 1.3 + idx) * 0.02;
+    b.head.rotation.z = sway + (isSp ? Math.sin(t * 3.1) * 0.05 * amp : 0) + (emo === 'worried' ? 0.08 : 0) + (emo === 'smug' ? -0.1 : 0);
+    b.head.rotation.x = isSp ? -0.02 + amp * 0.04 : 0.03; b.head.rotation.y = Math.sin(t * 0.6 + idx) * 0.06 + (isSp ? 0 : Math.sign(-b.cfg.x) * 0.1);
+    b.head.position.y = 5.05 + (isSp ? 0.06 * amp : 0) + (emo === 'laugh' ? Math.abs(Math.sin(t * 14 + idx)) * 0.1 : 0);
+    b.body.position.y = Math.sin(t * 1.6 + idx) * 0.02;
+    const g1 = isSp ? (0.8 + 0.7 * amp) : 0.12;
+    b.arms[0].rotation.x = isSp ? -0.5 - 1.0 * (0.5 + 0.5 * Math.sin(t * 4.5 + idx)) * g1 : -0.3 + sway; b.arms[1].rotation.x = isSp ? -0.3 - 0.9 * (0.5 + 0.5 * Math.sin(t * 4.1 + 1.7)) * g1 : -0.3 - sway;
+    b.arms[0].rotation.z = isSp ? 0.25 + 0.3 * amp : 0.05; b.arms[1].rotation.z = isSp ? -0.25 - 0.3 * amp : -0.05;
+    b.bulb.material.color.setHex(isSp ? 0xff4d6d : 0x66ff99); b.ant.scale.setScalar(1 + (isSp ? 0.25 * amp : 0));
+  }
+  applyCam(t);
+  // overlays
+  live.style.opacity = live_ ? 1 : 0; live.firstElementChild.style.opacity = Math.floor(t * 1.6) % 2 === 0 ? 1 : 0.35;
+  title.style.opacity = t < 0.3 ? 0 : 0; // (cold open starts straight on the robots)
+  // lower third: show when the speaker changes (and during the introductions)
+  let lt = -1; if (li >= 0) { const L0 = LINES[li]; const prevWho = li > 0 ? LINES[li - 1].who : ''; const isIntro = D.intro.includes(li); const changed = L0.who !== prevWho; if ((changed && (li < 3 || isIntro || hash(li * 5) > 0.45)) || false) { const age = t - L0.v0; if (age >= 0 && age < 2.8) lt = age; } }
+  if (lt >= 0) { const L0 = LINES[li]; lnm.textContent = L0.name; lrl.textContent = L0.role; lrl.style.background = ROLE_COL[L0.who]; const inn = smooth(lt / 0.35), out = 1 - smooth((lt - 2.3) / 0.45); lower.style.opacity = Math.min(inn, out); lower.style.transform = `translateX(${(1 - Math.min(inn, out)) * -300}px)`; } else lower.style.opacity = 0;
+  // info cards
+  { let shown = null, ci = -1; for (let i = 0; i < LINES.length; i++) { const L1 = LINES[i]; if (!L1.card) continue; let nxt = TOTAL; for (let j = i + 1; j < LINES.length; j++) if (LINES[j].card) { nxt = LINES[j].v0; break; } const t0c = L1.v0 + 0.2, t1c = Math.min(nxt - 0.1, Math.max(L1.v1 + 1.0, L1.v0 + 3.8), D.end); if (t >= t0c && t <= t1c) { shown = L1.card; ci = Math.min(seg(t, t0c, t0c + 0.35), 1 - seg(t, t1c - 0.35, t1c)); } }
+    const cardEl = $('card'); if (shown) { if (cardEl.dataset.k !== shown.t) { cardEl.dataset.k = shown.t; $('cardT').textContent = shown.t; $('cardT').style.background = shown.c || '#7a56d8'; $('cardL').innerHTML = shown.b.map(x => '<li>' + x + '</li>').join(''); } cardEl.style.opacity = clamp(ci); cardEl.style.transform = `translateY(${(1 - clamp(ci)) * 24}px)`; } else cardEl.style.opacity = 0; }
+  // captions
+  if (sp >= 0) { const L0 = LINES[sp], ch = CH[sp]; const tot = ch.reduce((a, c) => a + c.length, 0); let acc = 0; const k = seg(t, L0.v0, L0.v1) * tot; let ci = ch.length - 1; for (let i = 0; i < ch.length; i++) { acc += ch[i].length; if (k <= acc) { ci = i; break; } } capt.textContent = ch[ci]; cap.style.opacity = 1; } else cap.style.opacity = 0;
+  // end card
+  const ek = seg(t, D.end + 0.8, D.end + 1.6); end1.style.opacity = ek; end2.style.opacity = seg(t, D.end + 2.0, D.end + 2.8);
+  fade.style.opacity = Math.max(0.78 * ek, 1 - seg(t, 0, 0.5)); badge.style.opacity = 1 - ek;
+  renderer.render(scene, camera);
+}
+window.renderFrame = renderFrame; window.TOTAL = TOTAL; window.ready = true;
+</script>
+</body>
+</html>
