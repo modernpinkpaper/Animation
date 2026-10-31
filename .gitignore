@@ -1,2 +1,9 @@
 frames/
 kitten.blend1
+robot-podcast/voices/*.onnx
+robot-podcast/voices/*.onnx.json
+robot-podcast/pod/e[0-9]*/
+robot-podcast/pod/*.wav
+robot-podcast/anim/frames_ep*/
+robot-podcast/anim/ep*.json
+robot-podcast/out_ep*.mp4

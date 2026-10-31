@@ -1,0 +1,11 @@
+Make a new Robot Print Room podcast episode using the kit in the robot-podcast folder of this repo (see robot-podcast/README.md).
+
+Topic: <WRITE YOUR TOPIC HERE>
+Episode number: <N>
+
+Rules:
+1. Do NOT change or rebuild the engine. Do not write a new video generator. Only add one new file: pod/eps/e<N>.py, copied in format from pod/eps/e10.py.
+2. Use the same 6 robots (MICA host + 5 others), pick a theme, 25 to 40 lines, 8 to 10 info cards, 2 to 3 minutes.
+3. Funny, simple English, useful to a small business owner. Keep staff names, money and private info out.
+4. Run: ./setup.sh (first time only), python3 pod/mk.py <N>, then ./run_ep.sh <N>.
+5. Check 4 frames from out_ep<N>.mp4 (look at them), then tell me honestly what you checked and what you could not (you cannot hear audio).
