@@ -7,3 +7,11 @@ robot-podcast/pod/*.wav
 robot-podcast/anim/frames_ep*/
 robot-podcast/anim/ep*.json
 robot-podcast/out_ep*.mp4
+robot-podcast/node_modules/
+robot-podcast/package.json
+robot-podcast/package-lock.json
+__pycache__/
+robot-podcast/anim/r_ep*.log
+robot-podcast/anim/ep[0-9]*.json
+robot-podcast/pod/e*_raw.wav
+robot-podcast/voices/*.onnx*
